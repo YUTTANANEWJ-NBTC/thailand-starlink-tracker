@@ -9,4 +9,15 @@ export default defineConfig({
     react(),
   ],
   base: '/thailand-starlink-tracker/',
+  build: {
+    rollupOptions: {
+      external: [],
+    },
+  },
+  worker: {
+    format: 'es',
+  },
+  optimizeDeps: {
+    exclude: ['react-globe.gl'],
+  },
 })
