@@ -28,24 +28,32 @@ export default function GlobeView({ satellites, timeRef }) {
     }
   }, []);
 
+  const mutableSatsRef = useRef([]);
+
   useEffect(() => {
     if (!satellites || satellites.length === 0) return
+
+    // Initialize mutable objects array ONCE to keep references stable
+    mutableSatsRef.current = satellites.map(sat => ({ ...sat, lat: 0, lng: 0, alt: 0 }));
 
     const updateGlobeData = () => {
       const now = timeRef ? new Date(timeRef.current) : new Date()
       
-      const updatedSats = satellites.map(sat => {
+      let changed = false;
+      mutableSatsRef.current.forEach(sat => {
         const pos = getSatellitePosition(sat.tleLine1, sat.tleLine2, now);
-        if(!pos) return null;
-        return {
-          ...sat,
-          lat: pos.lat,
-          lng: pos.lng,
-          alt: pos.alt / 6371 // altitude relative to globe radius (Earth radius = 6371km)
-        };
-      }).filter(s => s !== null);
+        if(pos) {
+          sat.lat = pos.lat;
+          sat.lng = pos.lng;
+          sat.alt = pos.alt / 6371; // altitude relative to globe radius (Earth radius = 6371km)
+          changed = true;
+        }
+      });
       
-      setSatData(updatedSats);
+      // Update state with shallow copy to trigger re-render but maintain object references
+      if (changed) {
+        setSatData([...mutableSatsRef.current]);
+      }
     }
 
     updateGlobeData()

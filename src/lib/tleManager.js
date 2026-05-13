@@ -1,10 +1,12 @@
 const CORS_PROXY = 'https://corsproxy.io/?';
 
 const TLE_URLS = [
-  // CelesTrak supplemental feed (ข้อมูลสด แต่อาจมี CORS)
-  `${CORS_PROXY}${encodeURIComponent('https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=starlink&FORMAT=tle')}`,
-  // CelesTrak GP feed (สำรอง)
-  `${CORS_PROXY}${encodeURIComponent('https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle')}`,
+  // CelesTrak supplemental feed (ข้อมูลสด) - Try direct first
+  'https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=starlink&FORMAT=tle',
+  // Fallback with allorigins proxy if CORS fails
+  `https://api.allorigins.win/raw?url=${encodeURIComponent('https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=starlink&FORMAT=tle')}`,
+  // Local fallback data (fastest and 100% reliable for mockup if internet/APIs fail)
+  '/starlink.txt'
 ];
 
 async function fetchWithTimeout(url, timeoutMs = 15000) {
