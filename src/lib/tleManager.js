@@ -6,7 +6,7 @@ const TLE_URLS = [
   // Fallback with allorigins proxy if CORS fails
   `https://api.allorigins.win/raw?url=${encodeURIComponent('https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=starlink&FORMAT=tle')}`,
   // Local fallback data (fastest and 100% reliable for mockup if internet/APIs fail)
-  '/starlink.txt'
+  import.meta.env.BASE_URL + 'starlink.txt'
 ];
 
 async function fetchWithTimeout(url, timeoutMs = 15000) {
