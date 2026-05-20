@@ -14,8 +14,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
-    <!-- satellite.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js" integrity="sha256-5O0zT1zZ9sO/uH3nU0e3yq3Ushf+vY7r2B5k19tO2D4=" crossorigin="anonymous"></script>
+    <!-- satellite.js Library (v5.0.0 UMD bundle — v7.x is ESM-only, no browser bundle) -->
+    <script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -693,6 +693,11 @@
             <span id="tle-count-text">TLE: LOADING</span>
         </div>
         
+        <!-- Last Modified Timestamp (yellow highlight) -->
+        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.5); padding: 4px 12px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.65rem; color: #fbbf24; font-weight: 700; letter-spacing: 0.05em; text-shadow: 0 0 8px rgba(245, 158, 11, 0.3);">
+            LAST MODIFIED: 20/MAY/2026 13:45
+        </div>
+        
         <!-- Navigate back to Dashboard -->
         <a href="index.html" class="hud-nav-btn">
             <i data-lucide="layout-dashboard"></i>
@@ -704,8 +709,68 @@
 
 <!-- Tracker Calculation and Simulation Logic -->
 <script>
+    // Global Error Overlay for debugging
+    window.onerror = function(message, source, lineno, colno, error) {
+        console.error("Runtime error caught:", message, "at", source, ":", lineno);
+        const errDiv = document.createElement('div');
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '24px';
+        errDiv.style.left = '50%';
+        errDiv.style.transform = 'translateX(-50%)';
+        errDiv.style.zIndex = '999999';
+        errDiv.style.background = 'rgba(239, 68, 68, 0.9)';
+        errDiv.style.backdropFilter = 'blur(10px)';
+        errDiv.style.color = '#fff';
+        errDiv.style.padding = '16px 28px';
+        errDiv.style.borderRadius = '12px';
+        errDiv.style.fontFamily = 'var(--font-mono)';
+        errDiv.style.fontSize = '12px';
+        errDiv.style.boxShadow = '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(239, 68, 68, 0.3)';
+        errDiv.style.maxWidth = '90%';
+        errDiv.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        errDiv.style.pointerEvents = 'auto';
+        errDiv.innerHTML = `<div style="font-weight:800; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.1em; color:#ffebeb;">⚠️ JS Telemetry Exception</div><div style="opacity:0.9;">${message}</div><div style="font-size:10px; opacity:0.6; margin-top:8px;">Line ${lineno}:${colno} | ${source.split('/').pop()}</div>`;
+        document.body.appendChild(errDiv);
+        return false;
+    };
+    window.onunhandledrejection = function(event) {
+        console.error("Unhandled promise rejection:", event.reason);
+        const errDiv = document.createElement('div');
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '24px';
+        errDiv.style.left = '50%';
+        errDiv.style.transform = 'translateX(-50%)';
+        errDiv.style.zIndex = '999999';
+        errDiv.style.background = 'rgba(239, 68, 68, 0.9)';
+        errDiv.style.backdropFilter = 'blur(10px)';
+        errDiv.style.color = '#fff';
+        errDiv.style.padding = '16px 28px';
+        errDiv.style.borderRadius = '12px';
+        errDiv.style.fontFamily = 'var(--font-mono)';
+        errDiv.style.fontSize = '12px';
+        errDiv.style.boxShadow = '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(239, 68, 68, 0.3)';
+        errDiv.style.maxWidth = '90%';
+        errDiv.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        errDiv.style.pointerEvents = 'auto';
+        errDiv.innerHTML = `<div style="font-weight:800; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.1em; color:#ffebeb;">⚠️ Unhandled Promise Rejection</div><div style="opacity:0.9;">${event.reason}</div>`;
+        document.body.appendChild(errDiv);
+    };
+
     // Initialize Lucide Icons
     lucide.createIcons();
+
+    // ──── CRITICAL: Verify satellite.js loaded ────
+    if (typeof satellite === 'undefined' || typeof satellite.twoline2satrec !== 'function') {
+        const msg = typeof satellite === 'undefined' 
+            ? 'satellite.js library failed to load from CDN (script returned 404 or was blocked).'
+            : 'satellite.js loaded but twoline2satrec() is missing. Wrong version or build.';
+        console.error('[FATAL]', msg);
+        document.getElementById('tle-count-text').textContent = 'LIB: FAILED';
+        const errDiv = document.createElement('div');
+        errDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999999;background:rgba(239,68,68,0.95);backdrop-filter:blur(16px);color:#fff;padding:32px 40px;border-radius:16px;font-family:var(--font-hud);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.7),0 0 40px rgba(239,68,68,0.4);max-width:500px;border:1px solid rgba(255,255,255,0.15)';
+        errDiv.innerHTML = '<div style="font-size:2rem;margin-bottom:12px">⚠️</div><div style="font-weight:900;font-size:1.1rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:8px">SATELLITE LIBRARY LOAD FAILURE</div><div style="font-size:0.8rem;opacity:0.9;line-height:1.6">' + msg + '</div>';
+        document.body.appendChild(errDiv);
+    }
 
     // TARGET COUNTRIES AND COORDINATES BOUNDING BOXES FOR FOOTPRINT OVERLAP DETECTION
     // Thailand, Myanmar, Laos, Cambodia, Malaysia
@@ -928,15 +993,17 @@
     // Mathematical formula to calculate Footprint ground radius in km
     // H: altitude in km, minElevationDeg: minimum service angle (e.g. 30 degrees)
     function getFootprintRadius(H, minElevationDeg = 25) {
+        if (isNaN(H) || H <= 0) return 0;
         const Re = 6371; // Earth radius in km
         const theta = minElevationDeg * Math.PI / 180; // rad
         const cosTheta = Math.cos(theta);
         const sinEta = (Re / (Re + H)) * cosTheta;
         
-        if (sinEta > 1 || sinEta < -1) return 0;
+        if (isNaN(sinEta) || sinEta > 1 || sinEta < -1) return 0;
         
         const eta = Math.asin(sinEta);
         const alpha = (Math.PI / 2) - theta - eta; // central angle rad
+        if (isNaN(alpha) || alpha <= 0) return 0;
         return Re * alpha; // radius on ground in km
     }
 
@@ -969,71 +1036,76 @@
         });
 
         // 1. Initial coarse filtering of satellites outside ASEAN Region Bounding Box
-        // Iterate through all 6000+ satellites, keeping it blazing fast
+        // Iterate through all 10000+ satellites, keeping it blazing fast and error-resilient
         for (let i = 0; i < rawSatellitesData.length; i++) {
             const sat = rawSatellitesData[i];
             
-            let satrec;
             try {
-                satrec = satellite.twoline2satrec(sat.line1, sat.line2);
-            } catch (err) {
-                continue;
-            }
-            
-            const posVelocity = satellite.propagate(satrec, date);
-            if (!posVelocity || !posVelocity.position) continue;
-            
-            const positionEci = posVelocity.position;
-            const gmst = satellite.gstime(date);
-            const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-            
-            const satLng = satellite.degreesLong(positionGd.longitude);
-            const satLat = satellite.degreesLat(positionGd.latitude);
-            const satAlt = positionGd.height; // altitude in km
-            
-            // Check if sub-point falls inside coarse ASEAN boundary (plus buffer)
-            const isInsideCoarseAsean = (
-                satLat >= ASEAN_BBOX.minLat && satLat <= ASEAN_BBOX.maxLat &&
-                satLng >= ASEAN_BBOX.minLng && satLng <= ASEAN_BBOX.maxLng
-            );
-            
-            // Skip calculations early if ASEAN filter is ON and it's outside ASEAN
-            if (isAseanFilterOn && !isInsideCoarseAsean) {
-                continue;
-            }
-
-            // Calculate Footprint Radius
-            const footprintRadiusKm = getFootprintRadius(satAlt, 30); // 30 degrees elevation angle
-            
-            // Determine country coverages
-            const coveredCountries = [];
-            let overlapsWithAseanTarget = false;
-            
-            Object.keys(COUNTRIES).forEach(key => {
-                const country = COUNTRIES[key];
-                const distance = distanceToBbox(satLat, satLng, country.bbox);
+                let satrec = satellite.twoline2satrec(sat.line1, sat.line2);
+                const posVelocity = satellite.propagate(satrec, date);
+                if (!posVelocity || !posVelocity.position) continue;
                 
-                if (distance <= footprintRadiusKm) {
-                    coveredCountries.push(key);
-                    country.active = true;
-                    country.satCount++;
-                    overlapsWithAseanTarget = true;
+                const positionEci = posVelocity.position;
+                if (isNaN(positionEci.x) || isNaN(positionEci.y) || isNaN(positionEci.z)) continue;
+
+                const gmst = satellite.gstime(date);
+                const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+                if (!positionGd) continue;
+                
+                const satLng = satellite.degreesLong(positionGd.longitude);
+                const satLat = satellite.degreesLat(positionGd.latitude);
+                const satAlt = positionGd.height; // altitude in km
+                
+                if (isNaN(satLng) || isNaN(satLat) || isNaN(satAlt)) continue;
+                
+                // Check if sub-point falls inside coarse ASEAN boundary (plus buffer)
+                const isInsideCoarseAsean = (
+                    satLat >= ASEAN_BBOX.minLat && satLat <= ASEAN_BBOX.maxLat &&
+                    satLng >= ASEAN_BBOX.minLng && satLng <= ASEAN_BBOX.maxLng
+                );
+                
+                // Skip calculations early if ASEAN filter is ON and it's outside ASEAN
+                if (isAseanFilterOn && !isInsideCoarseAsean) {
+                    continue;
                 }
-            });
-            
-            // If ASEAN filter is ON and this sat covers NO target countries, skip it!
-            if (isAseanFilterOn && !overlapsWithAseanTarget) {
+
+                // Calculate Footprint Radius
+                const footprintRadiusKm = getFootprintRadius(satAlt, 30); // 30 degrees elevation angle
+                if (isNaN(footprintRadiusKm) || footprintRadiusKm <= 0) continue;
+                
+                // Determine country coverages
+                const coveredCountries = [];
+                let overlapsWithAseanTarget = false;
+                
+                Object.keys(COUNTRIES).forEach(key => {
+                    const country = COUNTRIES[key];
+                    const distance = distanceToBbox(satLat, satLng, country.bbox);
+                    
+                    if (!isNaN(distance) && distance <= footprintRadiusKm) {
+                        coveredCountries.push(key);
+                        country.active = true;
+                        country.satCount++;
+                        overlapsWithAseanTarget = true;
+                    }
+                });
+                
+                // If ASEAN filter is ON and this sat covers NO target countries, skip it!
+                if (isAseanFilterOn && !overlapsWithAseanTarget) {
+                    continue;
+                }
+                
+                activeSatsList.push({
+                    name: sat.name,
+                    lat: satLat,
+                    lng: satLng,
+                    alt: satAlt,
+                    radiusKm: footprintRadiusKm,
+                    covered: coveredCountries
+                });
+            } catch (err) {
+                // Silently ignore individual satellite calculation failures
                 continue;
             }
-            
-            activeSatsList.push({
-                name: sat.name,
-                lat: satLat,
-                lng: satLng,
-                alt: satAlt,
-                radiusKm: footprintRadiusKm,
-                covered: coveredCountries
-            });
         }
         
         processedSats = activeSatsList;
@@ -1075,46 +1147,50 @@
         footprintCirclesGroup.clearLayers();
         
         processedSats.forEach(sat => {
-            const isSelected = (sat.name === selectedSatName);
-            
-            // 1. Draw Footprint circle
-            const circleColor = isSelected ? '#10b981' : '#3b82f6';
-            const footprintCircle = L.circle([sat.lat, sat.lng], {
-                radius: sat.radiusKm * 1000, // Leaflet takes radius in meters!
-                color: circleColor,
-                weight: isSelected ? 2.5 : 1,
-                opacity: isSelected ? 0.8 : 0.4,
-                fillColor: circleColor,
-                fillOpacity: isSelected ? 0.18 : 0.07,
-                className: 'glowing-footprint'
-            });
-            footprintCircle.addTo(footprintCirclesGroup);
-            
-            // 2. Draw Satellite center marker
-            const marker = L.marker([sat.lat, sat.lng], {
-                icon: isSelected ? satIconSelected : satIcon
-            });
-            
-            // Satellite Popup detail
-            const popupContent = `
-                <div style="font-family: var(--font-hud); color: #fff; background: rgba(5,6,12,0.9); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--panel-border); font-size: 11px;">
-                    <div style="font-weight: 800; color: var(--primary); font-size: 13px; margin-bottom: 4px;">${sat.name}</div>
-                    <div> Altitude: <span style="font-family: var(--font-mono); color: #fff;">${Math.round(sat.alt)} km</span></div>
-                    <div> Footprint: <span style="font-family: var(--font-mono); color: #fff;">${Math.round(sat.radiusKm)} km</span></div>
-                    <div style="margin-top: 4px;">
-                        ${sat.covered.map(c => `<span style="display:inline-block; font-size:9px; background: rgba(59,130,246,0.2); border: 1px solid var(--panel-border); padding: 2px 6px; border-radius:4px; margin-right:4px;">${COUNTRIES[c].flag} ${COUNTRIES[c].name}</span>`).join('')}
+            try {
+                const isSelected = (sat.name === selectedSatName);
+                
+                // 1. Draw Footprint circle
+                const circleColor = isSelected ? '#10b981' : '#3b82f6';
+                const footprintCircle = L.circle([sat.lat, sat.lng], {
+                    radius: sat.radiusKm * 1000, // Leaflet takes radius in meters!
+                    color: circleColor,
+                    weight: isSelected ? 2.5 : 1,
+                    opacity: isSelected ? 0.8 : 0.4,
+                    fillColor: circleColor,
+                    fillOpacity: isSelected ? 0.18 : 0.07,
+                    className: 'glowing-footprint'
+                });
+                footprintCircle.addTo(footprintCirclesGroup);
+                
+                // 2. Draw Satellite center marker
+                const marker = L.marker([sat.lat, sat.lng], {
+                    icon: isSelected ? satIconSelected : satIcon
+                });
+                
+                // Satellite Popup detail
+                const popupContent = `
+                    <div style="font-family: var(--font-hud); color: #fff; background: rgba(5,6,12,0.9); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--panel-border); font-size: 11px;">
+                        <div style="font-weight: 800; color: var(--primary); font-size: 13px; margin-bottom: 4px;">${sat.name}</div>
+                        <div> Altitude: <span style="font-family: var(--font-mono); color: #fff;">${Math.round(sat.alt)} km</span></div>
+                        <div> Footprint: <span style="font-family: var(--font-mono); color: #fff;">${Math.round(sat.radiusKm)} km</span></div>
+                        <div style="margin-top: 4px;">
+                            ${sat.covered.map(c => `<span style="display:inline-block; font-size:9px; background: rgba(59,130,246,0.2); border: 1px solid var(--panel-border); padding: 2px 6px; border-radius:4px; margin-right:4px;">${COUNTRIES[c].flag} ${COUNTRIES[c].name}</span>`).join('')}
+                        </div>
                     </div>
-                </div>
-            `;
-            marker.bindPopup(popupContent, { closeButton: false });
-            
-            marker.on('click', () => {
-                selectedSatName = sat.name;
-                renderMapLayers();
-                highlightSatelliteRow(sat.name);
-            });
-            
-            marker.addTo(satelliteMarkersGroup);
+                `;
+                marker.bindPopup(popupContent, { closeButton: false });
+                
+                marker.on('click', () => {
+                    selectedSatName = sat.name;
+                    renderMapLayers();
+                    highlightSatelliteRow(sat.name);
+                });
+                
+                marker.addTo(satelliteMarkersGroup);
+            } catch (err) {
+                console.error("Error rendering map layer for satellite:", sat.name, err);
+            }
         });
     }
 
@@ -1149,34 +1225,38 @@
         }
         
         processedSats.forEach(sat => {
-            const isSelected = (sat.name === selectedSatName);
-            const row = document.createElement('div');
-            row.className = `sat-row ${isSelected ? 'selected' : ''}`;
-            row.id = `sat-row-${sat.name.replace(/\s+/g, '-')}`;
-            
-            row.innerHTML = `
-                <div class="sat-details">
-                    <span class="sat-name">${sat.name}</span>
-                    <span class="sat-meta">ALT: <span>${Math.round(sat.alt)} km</span> RAD: <span>${Math.round(sat.radiusKm)} km</span></span>
-                </div>
-                <div class="sat-coverage-badges">
-                    ${sat.covered.map(c => `<span class="sat-badge" title="${COUNTRIES[c].name}">${COUNTRIES[c].flag}</span>`).join('')}
-                </div>
-            `;
-            
-            row.addEventListener('click', () => {
-                selectedSatName = sat.name;
+            try {
+                const isSelected = (sat.name === selectedSatName);
+                const row = document.createElement('div');
+                row.className = `sat-row ${isSelected ? 'selected' : ''}`;
+                row.id = `sat-row-${sat.name.replace(/\s+/g, '-')}`;
                 
-                // Pan map smoothly to the satellite
-                map.panTo([sat.lat, sat.lng]);
-                renderMapLayers();
+                row.innerHTML = `
+                    <div class="sat-details">
+                        <span class="sat-name">${sat.name}</span>
+                        <span class="sat-meta">ALT: <span>${Math.round(sat.alt)} km</span> RAD: <span>${Math.round(sat.radiusKm)} km</span></span>
+                    </div>
+                    <div class="sat-coverage-badges">
+                        ${sat.covered.map(c => `<span class="sat-badge" title="${COUNTRIES[c].name}">${COUNTRIES[c].flag}</span>`).join('')}
+                    </div>
+                `;
                 
-                // Highlight row
-                document.querySelectorAll('.sat-row').forEach(r => r.classList.remove('selected'));
-                row.classList.add('selected');
-            });
-            
-            listContainer.appendChild(row);
+                row.addEventListener('click', () => {
+                    selectedSatName = sat.name;
+                    
+                    // Pan map smoothly to the satellite
+                    map.panTo([sat.lat, sat.lng]);
+                    renderMapLayers();
+                    
+                    // Highlight row
+                    document.querySelectorAll('.sat-row').forEach(r => r.classList.remove('selected'));
+                    row.classList.add('selected');
+                });
+                
+                listContainer.appendChild(row);
+            } catch (err) {
+                console.error("Error rendering list row for satellite:", sat.name, err);
+            }
         });
     }
 
