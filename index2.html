@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starlink ASEAN Footprint Tracker</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet.js Map Styles & Scripts -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- satellite.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js" integrity="sha256-p9egEeiT3FIDLdR+1XKolkAIXYuA3l48xyaivQ3CGp8=" crossorigin="anonymous"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root {
+            --bg-color: #060813;
+            --panel-bg: rgba(10, 14, 30, 0.75);
+            --panel-border: rgba(59, 130, 246, 0.2);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.45);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.4);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.4);
+            --warning: #f59e0b;
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            --font-hud: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: var(--font-hud);
+            color: var(--text-color);
+        }
+
+        /* Base UI Layout */
+        #app-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+        }
+
+        #map {
+            flex: 1;
+            height: 100%;
+            z-index: 1;
+            background: #030408;
+        }
+
+        /* Modern Customizations for Leaflet Map */
+        .leaflet-container {
+            background-color: #030408 !important;
+        }
+        .leaflet-bar {
+            border: 1px solid var(--panel-border) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+            background: var(--panel-bg) !important;
+            border-radius: 8px !important;
+            overflow: hidden;
+        }
+        .leaflet-bar a {
+            background: transparent !important;
+            color: var(--text-color) !important;
+            border-bottom: 1px solid var(--panel-border) !important;
+            transition: all 0.3s;
+        }
+        .leaflet-bar a:hover {
+            background: rgba(59, 130, 246, 0.2) !important;
+            color: #fff !important;
+        }
+        .leaflet-control-attribution {
+            background: rgba(0, 0, 0, 0.6) !important;
+            color: var(--text-muted) !important;
+            backdrop-filter: blur(4px);
+            font-size: 10px !important;
+        }
+
+        /* Glowing Footprint Overlays in CSS (for dynamic interactive styling) */
+        .glowing-footprint {
+            animation: pulse-glow 3s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            0% { stroke-opacity: 0.35; fill-opacity: 0.08; }
+            100% { stroke-opacity: 0.65; fill-opacity: 0.18; }
+        }
+
+        /* Futuristic HUD elements overlay */
+        .hud-overlay {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .hud-interactive {
+            pointer-events: auto;
+        }
+
+        /* Header UI Banner */
+        #hud-header {
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: max-content;
+            max-width: 90%;
+            text-align: center;
+        }
+        .hud-title-container {
+            padding: 12px 32px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 
+                        inset 0 0 15px rgba(59, 130, 246, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #hud-header h1 {
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, #ffffff 0%, #a5c7f7 50%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
+        }
+        #hud-header .subtitle {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            letter-spacing: 0.4em;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-top: 4px;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+        }
+
+        /* Left Stats Panel */
+        #hud-left-panel {
+            left: 24px;
+            top: 24px;
+            bottom: 24px;
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Glowing HUD Panels */
+        .hud-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5),
+                        inset 0 0 20px rgba(59, 130, 246, 0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .hud-panel:hover {
+            border-color: rgba(59, 130, 246, 0.35);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6),
+                        0 0 20px rgba(59, 130, 246, 0.1),
+                        inset 0 0 20px rgba(59, 130, 246, 0.08);
+        }
+
+        .hud-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .hud-panel-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .hud-panel-title i {
+            color: var(--primary);
+            filter: drop-shadow(0 0 5px var(--primary));
+        }
+
+        /* Clock and Control Panel */
+        #clock-panel {
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .time-display {
+            font-family: var(--font-mono);
+            font-size: 1.15rem;
+            font-weight: 700;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #fff;
+            letter-spacing: 0.05em;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .time-display span {
+            color: var(--primary);
+            text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+        }
+
+        .simulation-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .sim-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            color: var(--text-muted);
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+        }
+        .sim-btn:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        }
+        .sim-btn.active {
+            background: var(--primary);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 0 15px var(--primary-glow);
+            font-weight: 800;
+        }
+        .sim-btn-icon {
+            flex: 0 0 40px;
+        }
+
+        /* Stats & Country list HUD */
+        .stats-summary {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(59, 130, 246, 0.03);
+            border-bottom: 1px solid var(--panel-border);
+        }
+        .stats-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .stats-val {
+            font-family: var(--font-mono);
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+            line-height: 1;
+        }
+        .stats-lbl {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        /* Country Coverage Grid */
+        #country-list {
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+        .country-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            transition: all 0.3s;
+        }
+        .country-row:hover {
+            border-color: rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.02);
+        }
+        .country-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .country-flag {
+            font-size: 1.2rem;
+        }
+        .country-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        .country-status-pill {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+        }
+        .status-active {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+        }
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        .status-active .status-dot {
+            animation: beacon 1.5s infinite alternate;
+        }
+        @keyframes beacon {
+            0% { box-shadow: 0 0 0 0px var(--success-glow); }
+            100% { box-shadow: 0 0 6px 4px var(--success-glow); }
+        }
+
+        /* Scrolling Active Satellite List */
+        .scrolling-list-container {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 250px;
+        }
+        /* Custom scrollbar for HUD */
+        .scrolling-list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrolling-list-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .scrolling-list-container::-webkit-scrollbar-thumb {
+            background: var(--panel-border);
+            border-radius: 3px;
+        }
+        .scrolling-list-container::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        .sat-row {
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sat-row:hover {
+            background: rgba(59, 130, 246, 0.08);
+            border-bottom-color: rgba(59, 130, 246, 0.2);
+        }
+        .sat-row.selected {
+            background: rgba(59, 130, 246, 0.15);
+            border-left: 3px solid var(--primary);
+        }
+        .sat-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .sat-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.05em;
+        }
+        .sat-meta {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 8px;
+        }
+        .sat-meta span {
+            color: var(--primary);
+        }
+        .sat-coverage-badges {
+            display: flex;
+            gap: 4px;
+        }
+        .sat-badge {
+            font-size: 0.85rem;
+            padding: 2px 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        /* Toggle Button in Panels */
+        .hud-toggle-btn {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            color: var(--text-color);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .hud-toggle-btn:hover {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--primary);
+        }
+        .hud-toggle-btn.active {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        /* Bottom Status Info Bar */
+        #hud-bottom-bar {
+            bottom: 24px;
+            right: 24px;
+            left: 428px;
+            height: 48px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .hud-status-text {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .hud-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse-beacon 2s infinite;
+        }
+        @keyframes pulse-beacon {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 12px var(--success); }
+            100% { transform: scale(0.9); opacity: 0.6; }
+        }
+
+        .hud-nav-btn {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid var(--panel-border);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .hud-nav-btn:hover {
+            background: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+            border-color: transparent;
+        }
+
+        /* Mobile View Styles */
+        @media (max-width: 900px) {
+            #app-container {
+                flex-direction: column;
+            }
+            #hud-left-panel {
+                width: calc(100% - 48px);
+                bottom: auto;
+                max-height: 45vh;
+            }
+            #hud-bottom-bar {
+                left: 24px;
+                bottom: 12px;
+                height: auto;
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px;
+            }
+            .scrolling-list-container {
+                max-height: 120px;
+            }
+            #hud-header {
+                display: none; /* Hide header banner on mobile to save space */
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    
+    <!-- Leaflet.js Interactive 2D Map -->
+    <div id="map"></div>
+
+    <!-- HUD Overlay: Header Banner -->
+    <header id="hud-header" class="hud-overlay">
+        <div class="hud-title-container">
+            <h1>Starlink ASEAN Tracker</h1>
+            <div class="subtitle">Live Regional Footprint Analysis</div>
+        </div>
+    </header>
+
+    <!-- HUD Overlay: Left Panel containing Stats, Controls, Countries & Satellite List -->
+    <aside id="hud-left-panel" class="hud-overlay hud-interactive">
+        
+        <!-- Time and controls -->
+        <div class="hud-panel">
+            <div id="clock-panel">
+                <div class="time-display">
+                    <i data-lucide="clock"></i>
+                    <span id="hud-clock">0000-00-00 00:00:00</span>
+                </div>
+                <div class="simulation-controls">
+                    <button class="sim-btn sim-btn-icon" id="btn-play-pause" title="Play/Pause Simulation">
+                        <i data-lucide="pause" id="play-pause-icon"></i>
+                    </button>
+                    <button class="sim-btn active" data-speed="1">x1</button>
+                    <button class="sim-btn" data-speed="5">x5</button>
+                    <button class="sim-btn" data-speed="10">x10</button>
+                    <button class="sim-btn" data-speed="30">x30</button>
+                    <button class="sim-btn sim-btn-icon" id="btn-reset" title="Reset to Present Time">
+                        <i data-lucide="rotate-ccw"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Country status & counters -->
+        <div class="hud-panel" style="flex: 1;">
+            <div class="hud-panel-header">
+                <div class="hud-panel-title">
+                    <i data-lucide="globe"></i>
+                    <span>ASEAN Footprints</span>
+                </div>
+                <button id="btn-mode-toggle" class="hud-toggle-btn active" title="Toggle filtering out non-ASEAN satellites">
+                    ASEAN FILTER: ON
+                </button>
+            </div>
+            
+            <div class="stats-summary">
+                <div class="stats-item">
+                    <span class="stats-val" id="val-sats-in-range">0</span>
+                    <span class="stats-lbl">Active Satellites</span>
+                </div>
+                <div class="stats-item" style="text-align: right;">
+                    <span class="stats-val" id="val-coverage-pct" style="color: var(--success); text-shadow: 0 0 10px var(--success-glow);">0%</span>
+                    <span class="stats-lbl">Coverage Index</span>
+                </div>
+            </div>
+
+            <!-- Country list with glowing indicators -->
+            <div id="country-list">
+                <div class="country-row" data-country="thailand">
+                    <div class="country-info">
+                        <span class="country-flag">🇹🇭</span>
+                        <span class="country-name">Thailand</span>
+                    </div>
+                    <div class="country-status-pill status-inactive" id="status-thailand">
+                        <div class="status-dot"></div>
+                        <span>Offline</span>
+                    </div>
+                </div>
+                <div class="country-row" data-country="myanmar">
+                    <div class="country-info">
+                        <span class="country-flag">🇲🇲</span>
+                        <span class="country-name">Myanmar</span>
+                    </div>
+                    <div class="country-status-pill status-inactive" id="status-myanmar">
+                        <div class="status-dot"></div>
+                        <span>Offline</span>
+                    </div>
+                </div>
+                <div class="country-row" data-country="laos">
+                    <div class="country-info">
+                        <span class="country-flag">🇱🇦</span>
+                        <span class="country-name">Laos</span>
+                    </div>
+                    <div class="country-status-pill status-inactive" id="status-laos">
+                        <div class="status-dot"></div>
+                        <span>Offline</span>
+                    </div>
+                </div>
+                <div class="country-row" data-country="cambodia">
+                    <div class="country-info">
+                        <span class="country-flag">🇰🇭</span>
+                        <span class="country-name">Cambodia</span>
+                    </div>
+                    <div class="country-status-pill status-inactive" id="status-cambodia">
+                        <div class="status-dot"></div>
+                        <span>Offline</span>
+                    </div>
+                </div>
+                <div class="country-row" data-country="malaysia">
+                    <div class="country-info">
+                        <span class="country-flag">🇲🇾</span>
+                        <span class="country-name">Malaysia</span>
+                    </div>
+                    <div class="country-status-pill status-inactive" id="status-malaysia">
+                        <div class="status-dot"></div>
+                        <span>Offline</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrolling Active Satellites List -->
+            <div class="scrolling-list-container" id="satellite-list">
+                <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.75rem;">
+                    Loading satellites...
+                </div>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- HUD Overlay: Bottom Bar containing controls & page navigations -->
+    <footer id="hud-bottom-bar" class="hud-overlay hud-panel hud-interactive">
+        <div class="hud-status-text">
+            <div class="hud-status-dot"></div>
+            <span>Telemetry Link: SECURE</span>
+            <span style="opacity: 0.3;">|</span>
+            <span id="tle-count-text">TLE: LOADING</span>
+        </div>
+        
+        <!-- Navigate back to Dashboard -->
+        <a href="index.html" class="hud-nav-btn">
+            <i data-lucide="layout-dashboard"></i>
+            <span>3D Earth Dashboard</span>
+        </a>
+    </footer>
+
+</div>
+
+<!-- Tracker Calculation and Simulation Logic -->
+<script>
+    // Global Error Overlay for debugging
+    window.onerror = function(message, source, lineno, colno, error) {
+        console.error("Runtime error caught:", message, "at", source, ":", lineno);
+        const errDiv = document.createElement('div');
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '24px';
+        errDiv.style.left = '50%';
+        errDiv.style.transform = 'translateX(-50%)';
+        errDiv.style.zIndex = '999999';
+        errDiv.style.background = 'rgba(239, 68, 68, 0.9)';
+        errDiv.style.backdropFilter = 'blur(10px)';
+        errDiv.style.color = '#fff';
+        errDiv.style.padding = '16px 28px';
+        errDiv.style.borderRadius = '12px';
+        errDiv.style.fontFamily = 'var(--font-mono)';
+        errDiv.style.fontSize = '12px';
+        errDiv.style.boxShadow = '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(239, 68, 68, 0.3)';
+        errDiv.style.maxWidth = '90%';
+        errDiv.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        errDiv.style.pointerEvents = 'auto';
+        errDiv.innerHTML = `<div style="font-weight:800; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.1em; color:#ffebeb;">⚠️ JS Telemetry Exception</div><div style="opacity:0.9;">${message}</div><div style="font-size:10px; opacity:0.6; margin-top:8px;">Line ${lineno}:${colno} | ${source.split('/').pop()}</div>`;
+        document.body.appendChild(errDiv);
+        return false;
+    };
+    window.onunhandledrejection = function(event) {
+        console.error("Unhandled promise rejection:", event.reason);
+        const errDiv = document.createElement('div');
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '24px';
+        errDiv.style.left = '50%';
+        errDiv.style.transform = 'translateX(-50%)';
+        errDiv.style.zIndex = '999999';
+        errDiv.style.background = 'rgba(239, 68, 68, 0.9)';
+        errDiv.style.backdropFilter = 'blur(10px)';
+        errDiv.style.color = '#fff';
+        errDiv.style.padding = '16px 28px';
+        errDiv.style.borderRadius = '12px';
+        errDiv.style.fontFamily = 'var(--font-mono)';
+        errDiv.style.fontSize = '12px';
+        errDiv.style.boxShadow = '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(239, 68, 68, 0.3)';
+        errDiv.style.maxWidth = '90%';
+        errDiv.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        errDiv.style.pointerEvents = 'auto';
+        errDiv.innerHTML = `<div style="font-weight:800; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.1em; color:#ffebeb;">⚠️ Unhandled Promise Rejection</div><div style="opacity:0.9;">${event.reason}</div>`;
+        document.body.appendChild(errDiv);
+    };
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // TARGET COUNTRIES AND COORDINATES BOUNDING BOXES FOR FOOTPRINT OVERLAP DETECTION
+    // Thailand, Myanmar, Laos, Cambodia, Malaysia
+    const COUNTRIES = {
+        thailand: {
+            name: 'Thailand',
+            flag: '🇹🇭',
+            bbox: { minLat: 5.6, maxLat: 20.5, minLng: 97.3, maxLng: 105.7 },
+            center: [13.7367, 100.5231], // Bangkok
+            active: false,
+            satCount: 0
+        },
+        myanmar: {
+            name: 'Myanmar',
+            flag: '🇲🇲',
+            bbox: { minLat: 9.6, maxLat: 28.5, minLng: 92.2, maxLng: 101.2 },
+            center: [19.7633, 96.0785], // Naypyidaw
+            active: false,
+            satCount: 0
+        },
+        laos: {
+            name: 'Laos',
+            flag: '🇱🇦',
+            bbox: { minLat: 13.9, maxLat: 22.5, minLng: 100.1, maxLng: 107.7 },
+            center: [17.9757, 102.6331], // Vientiane
+            active: false,
+            satCount: 0
+        },
+        cambodia: {
+            name: 'Cambodia',
+            flag: '🇰🇭',
+            bbox: { minLat: 9.9, maxLat: 14.7, minLng: 102.3, maxLng: 107.6 },
+            center: [11.5564, 104.9282], // Phnom Penh
+            active: false,
+            satCount: 0
+        },
+        malaysia: {
+            name: 'Malaysia',
+            flag: '🇲🇾',
+            bbox: { minLat: 1.0, maxLat: 7.3, minLng: 99.6, maxLng: 119.3 },
+            center: [3.1390, 101.6869], // Kuala Lumpur
+            active: false,
+            satCount: 0
+        }
+    };
+
+    // ASEAN Unified Bounding Box (with buffer) to filter out ~95% of satellites immediately
+    // Covers Latitude -12° to 35° and Longitude 85° to 130°
+    const ASEAN_BBOX = { minLat: -12.0, maxLat: 35.0, minLng: 85.0, maxLng: 130.0 };
+
+    // --- LEAFLET MAP INITIALIZATION ---
+    // Center map around Southeast Asia
+    const map = L.map('map', {
+        zoomControl: false,
+        attributionControl: true
+    }).setView([13.5, 103.5], 5);
+
+    // Dark-themed tile layer (CartoDB Dark Matter) matching HUD aesthetics
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(map);
+
+    // Zoom control on top right
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Custom Glowing Marker Icons for Satellites
+    const satIcon = L.divIcon({
+        className: 'custom-sat-icon',
+        html: `<div style="
+            width: 8px; 
+            height: 8px; 
+            background: #ffffff; 
+            border: 2px solid var(--primary); 
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--primary);
+        "></div>`,
+        iconSize: [8, 8],
+        iconAnchor: [4, 4]
+    });
+
+    const satIconSelected = L.divIcon({
+        className: 'custom-sat-icon-selected',
+        html: `<div style="
+            width: 12px; 
+            height: 12px; 
+            background: #ffffff; 
+            border: 2px solid var(--success); 
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--success-glow);
+        "></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+    });
+
+    // Layer groups for managing drawing layers efficiently
+    const satelliteMarkersGroup = L.layerGroup().addTo(map);
+    const footprintCirclesGroup = L.layerGroup().addTo(map);
+
+    // --- SIMULATION TIME MANAGEMENT ---
+    let simSpeed = 1;
+    let isPlaying = true;
+    let simTime = Date.now();
+    let lastRealTime = Date.now();
+
+    // Clock DOM
+    const clockSpan = document.getElementById('hud-clock');
+    const playPauseIcon = document.getElementById('play-pause-icon');
+
+    // Setup Speed button click handlers
+    document.querySelectorAll('.sim-btn[data-speed]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.sim-btn[data-speed]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            simSpeed = parseInt(btn.getAttribute('data-speed'));
+        });
+    });
+
+    // Setup Play/Pause button handler
+    document.getElementById('btn-play-pause').addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+            playPauseIcon.setAttribute('data-lucide', 'pause');
+            lastRealTime = Date.now();
+        } else {
+            playPauseIcon.setAttribute('data-lucide', 'play');
+        }
+        lucide.createIcons();
+    });
+
+    // Setup Reset to Present Time handler
+    document.getElementById('btn-reset').addEventListener('click', () => {
+        simTime = Date.now();
+        lastRealTime = Date.now();
+        simSpeed = 1;
+        document.querySelectorAll('.sim-btn[data-speed]').forEach(b => b.classList.remove('active'));
+        document.querySelector('.sim-btn[data-speed="1"]').classList.add('active');
+        isPlaying = true;
+        playPauseIcon.setAttribute('data-lucide', 'pause');
+        lucide.createIcons();
+    });
+
+    // Setup Mode Toggle (ASEAN filter toggle)
+    let isAseanFilterOn = true;
+    const modeToggleBtn = document.getElementById('btn-mode-toggle');
+    modeToggleBtn.addEventListener('click', () => {
+        isAseanFilterOn = !isAseanFilterOn;
+        if (isAseanFilterOn) {
+            modeToggleBtn.textContent = "ASEAN FILTER: ON";
+            modeToggleBtn.classList.add('active');
+        } else {
+            modeToggleBtn.textContent = "ASEAN FILTER: OFF";
+            modeToggleBtn.classList.remove('active');
+        }
+    });
+
+    // Format YYYY-MM-DD HH:MM:SS
+    function formatTime(timestamp) {
+        const d = new Date(timestamp);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mins = String(d.getMinutes()).padStart(2, '0');
+        const ss = String(d.getSeconds()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd} ${hh}:${mins}:${ss}`;
+    }
+
+    // --- SATELLITE CALCULATION LOGIC ---
+    let rawSatellitesData = [];
+    let processedSats = [];
+    let selectedSatName = null;
+
+    // Load TLE Data from main endpoints or fallback
+    const TLE_URLS = [
+        'https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=starlink&FORMAT=tle',
+        `https://api.allorigins.win/raw?url=${encodeURIComponent('https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=starlink&FORMAT=tle')}`,
+        'starlink.txt' // Local fallback
+    ];
+
+    async function loadTLEData() {
+        const countText = document.getElementById('tle-count-text');
+        
+        for (const url of TLE_URLS) {
+            try {
+                console.log('[Telemetry] Attempting fetch:', url);
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const text = await res.text();
+                
+                rawSatellitesData = parseTLE(text);
+                if (rawSatellitesData.length > 10) {
+                    console.log(`[Telemetry] Loaded ${rawSatellitesData.length} satellites successfully!`);
+                    countText.textContent = `TLE: ${rawSatellitesData.length} LOADED`;
+                    return;
+                }
+            } catch (err) {
+                console.warn('[Telemetry] Loading failed from:', url, err.message);
+            }
+        }
+        
+        countText.textContent = `TLE: ERROR`;
+    }
+
+    function parseTLE(tleText) {
+        const lines = tleText.trim().split('\n');
+        const list = [];
+        for (let i = 0; i < lines.length; i += 3) {
+            if (i + 2 < lines.length) {
+                const name = lines[i].trim();
+                const line1 = lines[i + 1].trim();
+                const line2 = lines[i + 2].trim();
+                list.push({ name, line1, line2 });
+            }
+        }
+        return list;
+    }
+
+    // Mathematical formula to calculate Footprint ground radius in km
+    // H: altitude in km, minElevationDeg: minimum service angle (e.g. 30 degrees)
+    function getFootprintRadius(H, minElevationDeg = 25) {
+        if (isNaN(H) || H <= 0) return 0;
+        const Re = 6371; // Earth radius in km
+        const theta = minElevationDeg * Math.PI / 180; // rad
+        const cosTheta = Math.cos(theta);
+        const sinEta = (Re / (Re + H)) * cosTheta;
+        
+        if (isNaN(sinEta) || sinEta > 1 || sinEta < -1) return 0;
+        
+        const eta = Math.asin(sinEta);
+        const alpha = (Math.PI / 2) - theta - eta; // central angle rad
+        if (isNaN(alpha) || alpha <= 0) return 0;
+        return Re * alpha; // radius on ground in km
+    }
+
+    // Calculate approximate distance from lat/lng to a country bounding box in km
+    function distanceToBbox(lat, lng, bbox) {
+        let dx = 0;
+        let dy = 0;
+        
+        if (lng < bbox.minLng) dx = bbox.minLng - lng;
+        else if (lng > bbox.maxLng) dx = lng - bbox.maxLng;
+        
+        if (lat < bbox.minLat) dy = bbox.minLat - lat;
+        else if (lat > bbox.maxLat) dy = lat - bbox.maxLat;
+        
+        const latRad = lat * Math.PI / 180;
+        const dxKm = dx * 111.32 * Math.cos(latRad);
+        const dyKm = dy * 111.32;
+        return Math.sqrt(dxKm * dxKm + dyKm * dyKm);
+    }
+
+    // Process orbits & perform high-performance geofencing
+    function updateSatellitePositions() {
+        const date = new Date(simTime);
+        const activeSatsList = [];
+        
+        // Reset countries tracking
+        Object.keys(COUNTRIES).forEach(key => {
+            COUNTRIES[key].active = false;
+            COUNTRIES[key].satCount = 0;
+        });
+
+        // 1. Initial coarse filtering of satellites outside ASEAN Region Bounding Box
+        // Iterate through all 10000+ satellites, keeping it blazing fast and error-resilient
+        for (let i = 0; i < rawSatellitesData.length; i++) {
+            const sat = rawSatellitesData[i];
+            
+            try {
+                let satrec = satellite.twoline2satrec(sat.line1, sat.line2);
+                const posVelocity = satellite.propagate(satrec, date);
+                if (!posVelocity || !posVelocity.position) continue;
+                
+                const positionEci = posVelocity.position;
+                if (isNaN(positionEci.x) || isNaN(positionEci.y) || isNaN(positionEci.z)) continue;
+
+                const gmst = satellite.gstime(date);
+                const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+                if (!positionGd) continue;
+                
+                const satLng = satellite.degreesLong(positionGd.longitude);
+                const satLat = satellite.degreesLat(positionGd.latitude);
+                const satAlt = positionGd.height; // altitude in km
+                
+                if (isNaN(satLng) || isNaN(satLat) || isNaN(satAlt)) continue;
+                
+                // Check if sub-point falls inside coarse ASEAN boundary (plus buffer)
+                const isInsideCoarseAsean = (
+                    satLat >= ASEAN_BBOX.minLat && satLat <= ASEAN_BBOX.maxLat &&
+                    satLng >= ASEAN_BBOX.minLng && satLng <= ASEAN_BBOX.maxLng
+                );
+                
+                // Skip calculations early if ASEAN filter is ON and it's outside ASEAN
+                if (isAseanFilterOn && !isInsideCoarseAsean) {
+                    continue;
+                }
+
+                // Calculate Footprint Radius
+                const footprintRadiusKm = getFootprintRadius(satAlt, 30); // 30 degrees elevation angle
+                if (isNaN(footprintRadiusKm) || footprintRadiusKm <= 0) continue;
+                
+                // Determine country coverages
+                const coveredCountries = [];
+                let overlapsWithAseanTarget = false;
+                
+                Object.keys(COUNTRIES).forEach(key => {
+                    const country = COUNTRIES[key];
+                    const distance = distanceToBbox(satLat, satLng, country.bbox);
+                    
+                    if (!isNaN(distance) && distance <= footprintRadiusKm) {
+                        coveredCountries.push(key);
+                        country.active = true;
+                        country.satCount++;
+                        overlapsWithAseanTarget = true;
+                    }
+                });
+                
+                // If ASEAN filter is ON and this sat covers NO target countries, skip it!
+                if (isAseanFilterOn && !overlapsWithAseanTarget) {
+                    continue;
+                }
+                
+                activeSatsList.push({
+                    name: sat.name,
+                    lat: satLat,
+                    lng: satLng,
+                    alt: satAlt,
+                    radiusKm: footprintRadiusKm,
+                    covered: coveredCountries
+                });
+            } catch (err) {
+                // Silently ignore individual satellite calculation failures
+                continue;
+            }
+        }
+        
+        processedSats = activeSatsList;
+        
+        // Update Stats Counters
+        document.getElementById('val-sats-in-range').textContent = processedSats.length;
+        
+        // Calculate Coverage Index: % of target countries covered (0% to 100%)
+        let coveredTargetCount = 0;
+        Object.keys(COUNTRIES).forEach(key => {
+            if (COUNTRIES[key].active) coveredTargetCount++;
+        });
+        const indexPct = Math.round((coveredTargetCount / 5) * 100);
+        const indexVal = document.getElementById('val-coverage-pct');
+        indexVal.textContent = `${indexPct}%`;
+        if (indexPct >= 60) {
+            indexVal.style.color = 'var(--success)';
+            indexVal.style.textShadow = '0 0 10px var(--success-glow)';
+        } else if (indexPct >= 20) {
+            indexVal.style.color = 'var(--warning)';
+            indexVal.style.textShadow = '0 0 10px rgba(245, 158, 11, 0.4)';
+        } else {
+            indexVal.style.color = 'var(--danger)';
+            indexVal.style.textShadow = '0 0 10px var(--danger-glow)';
+        }
+
+        // Draw on Leaflet Map
+        renderMapLayers();
+        
+        // Update Sidebar Lists
+        renderCountryStatusList();
+        renderSatelliteTableList();
+    }
+
+    // --- LEAFLET RENDERING FLOW ---
+    function renderMapLayers() {
+        // Clear existing markers & footprint layers
+        satelliteMarkersGroup.clearLayers();
+        footprintCirclesGroup.clearLayers();
+        
+        processedSats.forEach(sat => {
+            try {
+                const isSelected = (sat.name === selectedSatName);
+                
+                // 1. Draw Footprint circle
+                const circleColor = isSelected ? '#10b981' : '#3b82f6';
+                const footprintCircle = L.circle([sat.lat, sat.lng], {
+                    radius: sat.radiusKm * 1000, // Leaflet takes radius in meters!
+                    color: circleColor,
+                    weight: isSelected ? 2.5 : 1,
+                    opacity: isSelected ? 0.8 : 0.4,
+                    fillColor: circleColor,
+                    fillOpacity: isSelected ? 0.18 : 0.07,
+                    className: 'glowing-footprint'
+                });
+                footprintCircle.addTo(footprintCirclesGroup);
+                
+                // 2. Draw Satellite center marker
+                const marker = L.marker([sat.lat, sat.lng], {
+                    icon: isSelected ? satIconSelected : satIcon
+                });
+                
+                // Satellite Popup detail
+                const popupContent = `
+                    <div style="font-family: var(--font-hud); color: #fff; background: rgba(5,6,12,0.9); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--panel-border); font-size: 11px;">
+                        <div style="font-weight: 800; color: var(--primary); font-size: 13px; margin-bottom: 4px;">${sat.name}</div>
+                        <div> Altitude: <span style="font-family: var(--font-mono); color: #fff;">${Math.round(sat.alt)} km</span></div>
+                        <div> Footprint: <span style="font-family: var(--font-mono); color: #fff;">${Math.round(sat.radiusKm)} km</span></div>
+                        <div style="margin-top: 4px;">
+                            ${sat.covered.map(c => `<span style="display:inline-block; font-size:9px; background: rgba(59,130,246,0.2); border: 1px solid var(--panel-border); padding: 2px 6px; border-radius:4px; margin-right:4px;">${COUNTRIES[c].flag} ${COUNTRIES[c].name}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+                marker.bindPopup(popupContent, { closeButton: false });
+                
+                marker.on('click', () => {
+                    selectedSatName = sat.name;
+                    renderMapLayers();
+                    highlightSatelliteRow(sat.name);
+                });
+                
+                marker.addTo(satelliteMarkersGroup);
+            } catch (err) {
+                console.error("Error rendering map layer for satellite:", sat.name, err);
+            }
+        });
+    }
+
+    // --- SIDEBAR UI UPDATES ---
+    function renderCountryStatusList() {
+        Object.keys(COUNTRIES).forEach(key => {
+            const country = COUNTRIES[key];
+            const pill = document.getElementById(`status-${key}`);
+            const textSpan = pill.querySelector('span');
+            
+            if (country.active) {
+                pill.className = "country-status-pill status-active";
+                textSpan.textContent = `Online (${country.satCount})`;
+            } else {
+                pill.className = "country-status-pill status-inactive";
+                textSpan.textContent = "Offline";
+            }
+        });
+    }
+
+    function renderSatelliteTableList() {
+        const listContainer = document.getElementById('satellite-list');
+        listContainer.innerHTML = '';
+        
+        if (processedSats.length === 0) {
+            listContainer.innerHTML = `
+                <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 0.75rem;">
+                    No satellites passing over target countries.
+                </div>
+            `;
+            return;
+        }
+        
+        processedSats.forEach(sat => {
+            try {
+                const isSelected = (sat.name === selectedSatName);
+                const row = document.createElement('div');
+                row.className = `sat-row ${isSelected ? 'selected' : ''}`;
+                row.id = `sat-row-${sat.name.replace(/\s+/g, '-')}`;
+                
+                row.innerHTML = `
+                    <div class="sat-details">
+                        <span class="sat-name">${sat.name}</span>
+                        <span class="sat-meta">ALT: <span>${Math.round(sat.alt)} km</span> RAD: <span>${Math.round(sat.radiusKm)} km</span></span>
+                    </div>
+                    <div class="sat-coverage-badges">
+                        ${sat.covered.map(c => `<span class="sat-badge" title="${COUNTRIES[c].name}">${COUNTRIES[c].flag}</span>`).join('')}
+                    </div>
+                `;
+                
+                row.addEventListener('click', () => {
+                    selectedSatName = sat.name;
+                    
+                    // Pan map smoothly to the satellite
+                    map.panTo([sat.lat, sat.lng]);
+                    renderMapLayers();
+                    
+                    // Highlight row
+                    document.querySelectorAll('.sat-row').forEach(r => r.classList.remove('selected'));
+                    row.classList.add('selected');
+                });
+                
+                listContainer.appendChild(row);
+            } catch (err) {
+                console.error("Error rendering list row for satellite:", sat.name, err);
+            }
+        });
+    }
+
+    function highlightSatelliteRow(name) {
+        document.querySelectorAll('.sat-row').forEach(r => r.classList.remove('selected'));
+        const rowId = `sat-row-${name.replace(/\s+/g, '-')}`;
+        const row = document.getElementById(rowId);
+        if (row) {
+            row.classList.add('selected');
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    // --- MAIN TICK LOOP ---
+    function tick() {
+        const now = Date.now();
+        const dt = now - lastRealTime;
+        lastRealTime = now;
+        
+        if (isPlaying) {
+            simTime += dt * simSpeed;
+        }
+        
+        clockSpan.textContent = formatTime(simTime);
+        
+        if (rawSatellitesData.length > 0) {
+            updateSatellitePositions();
+        }
+        
+        requestAnimationFrame(tick);
+    }
+
+    // --- LOAD & INITIALIZATION RUN ---
+    async function start() {
+        await loadTLEData();
+        tick();
+    }
+    
+    start();
+
+</script>
+
+</body>
+</html>
