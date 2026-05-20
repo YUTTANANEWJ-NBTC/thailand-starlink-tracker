@@ -170,6 +170,36 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+        #hud-left-panel.collapsed {
+            transform: translateX(calc(-100% - 24px));
+        }
+
+        #btn-toggle-panel {
+            position: absolute;
+            right: -36px;
+            top: 50px;
+            width: 36px;
+            height: 72px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-left: none;
+            border-radius: 0 12px 12px 0;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(20px);
+            z-index: -1;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        #btn-toggle-panel:hover {
+            background: rgba(59, 130, 246, 0.2);
+            color: #fff;
         }
 
         /* Glowing HUD Panels */
@@ -575,6 +605,10 @@
     <!-- HUD Overlay: Left Panel containing Stats, Controls, Countries & Satellite List -->
     <aside id="hud-left-panel" class="hud-overlay hud-interactive">
         
+        <button id="btn-toggle-panel" title="Toggle Menu">
+            <i data-lucide="chevron-left" id="toggle-panel-icon"></i>
+        </button>
+
         <!-- Time and controls -->
         <div class="hud-panel">
             <div id="clock-panel">
@@ -695,7 +729,7 @@
         
         <!-- Last Modified Timestamp (yellow highlight) -->
         <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.5); padding: 4px 12px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.65rem; color: #fbbf24; font-weight: 700; letter-spacing: 0.05em; text-shadow: 0 0 8px rgba(245, 158, 11, 0.3);">
-            LAST MODIFIED: 20/MAY/2026 13:45
+            LAST MODIFIED: 20/MAY/2026 14:13
         </div>
         
         <!-- Navigate back to Dashboard -->
@@ -928,6 +962,20 @@
         }
     });
 
+    // Setup Panel Toggle
+    const togglePanelBtn = document.getElementById('btn-toggle-panel');
+    const leftPanel = document.getElementById('hud-left-panel');
+    const toggleIcon = document.getElementById('toggle-panel-icon');
+    togglePanelBtn.addEventListener('click', () => {
+        leftPanel.classList.toggle('collapsed');
+        if (leftPanel.classList.contains('collapsed')) {
+            toggleIcon.setAttribute('data-lucide', 'chevron-right');
+        } else {
+            toggleIcon.setAttribute('data-lucide', 'chevron-left');
+        }
+        lucide.createIcons();
+    });
+
     // Format YYYY-MM-DD HH:MM:SS
     function formatTime(timestamp) {
         const d = new Date(timestamp);
@@ -1157,8 +1205,7 @@
                     color: circleColor,
                     weight: isSelected ? 2.5 : 1,
                     opacity: isSelected ? 0.8 : 0.4,
-                    fillColor: circleColor,
-                    fillOpacity: isSelected ? 0.18 : 0.07,
+                    fill: false,
                     className: 'glowing-footprint'
                 });
                 footprintCircle.addTo(footprintCirclesGroup);
