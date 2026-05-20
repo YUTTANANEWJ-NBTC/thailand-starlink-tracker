@@ -14,8 +14,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
-    <!-- satellite.js Library -->
-    <script src="https://unpkg.com/satellite.js@7.0.1/dist/satellite.min.js"></script>
+    <!-- satellite.js Library (v5.0.0 UMD bundle — v7.x is ESM-only, no browser bundle) -->
+    <script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -753,6 +753,19 @@
 
     // Initialize Lucide Icons
     lucide.createIcons();
+
+    // ──── CRITICAL: Verify satellite.js loaded ────
+    if (typeof satellite === 'undefined' || typeof satellite.twoline2satrec !== 'function') {
+        const msg = typeof satellite === 'undefined' 
+            ? 'satellite.js library failed to load from CDN (script returned 404 or was blocked).'
+            : 'satellite.js loaded but twoline2satrec() is missing. Wrong version or build.';
+        console.error('[FATAL]', msg);
+        document.getElementById('tle-count-text').textContent = 'LIB: FAILED';
+        const errDiv = document.createElement('div');
+        errDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999999;background:rgba(239,68,68,0.95);backdrop-filter:blur(16px);color:#fff;padding:32px 40px;border-radius:16px;font-family:var(--font-hud);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.7),0 0 40px rgba(239,68,68,0.4);max-width:500px;border:1px solid rgba(255,255,255,0.15)';
+        errDiv.innerHTML = '<div style="font-size:2rem;margin-bottom:12px">⚠️</div><div style="font-weight:900;font-size:1.1rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:8px">SATELLITE LIBRARY LOAD FAILURE</div><div style="font-size:0.8rem;opacity:0.9;line-height:1.6">' + msg + '</div>';
+        document.body.appendChild(errDiv);
+    }
 
     // TARGET COUNTRIES AND COORDINATES BOUNDING BOXES FOR FOOTPRINT OVERLAP DETECTION
     // Thailand, Myanmar, Laos, Cambodia, Malaysia
