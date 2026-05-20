@@ -131,6 +131,10 @@ function App() {
           THAILAND STARLINK TRACKING SIMULATION
         </h1>
         <div className="w-full h-[1px] mt-1.5 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
+        {/* Last Modified Timestamp (yellow highlight) */}
+        <div className="mt-2.5 px-3 py-1 bg-amber-500/15 border border-amber-500/50 rounded-md font-mono text-[10px] text-amber-400 font-bold tracking-[0.05em] shadow-[0_0_8px_rgba(245,158,11,0.2)] pointer-events-auto">
+          LAST MODIFIED: 20/MAY/2026 14:13
+        </div>
       </div>
       
       {loading ? (
