@@ -76,10 +76,6 @@ export default function GlobeView({ satellites, timeRef }) {
         objectAltitude="alt"
         objectThreeObject={() => new THREE.Mesh(satGeom, satMat)}
       />
-      
-      <div className="absolute bottom-4 right-4 text-xs text-white/50 pointer-events-none">
-        Satellites Tracked: {satData.length.toLocaleString()}
-      </div>
     </div>
   );
 }

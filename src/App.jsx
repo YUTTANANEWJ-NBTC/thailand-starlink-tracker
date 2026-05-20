@@ -125,17 +125,7 @@ function App() {
         </div>
       </div>
 
-      {/* Banner ตรงกลางด้านบน */}
-      <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center w-max">
-        <h1 className="text-lg md:text-2xl font-black tracking-[0.15em] text-transparent bg-clip-text bg-gradient-to-b from-white via-blue-100 to-blue-400 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)] uppercase">
-          THAILAND STARLINK TRACKING SIMULATION
-        </h1>
-        <div className="w-full h-[1px] mt-1.5 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
-        {/* Last Modified Timestamp (yellow highlight) */}
-        <div className="mt-2.5 px-3 py-1 bg-amber-500/15 border border-amber-500/50 rounded-md font-mono text-[10px] text-amber-400 font-bold tracking-[0.05em] shadow-[0_0_8px_rgba(245,158,11,0.2)] pointer-events-auto">
-          LAST MODIFIED: 20/MAY/2026 14:13
-        </div>
-      </div>
+
       
       {loading ? (
         <div className="w-full h-full flex flex-col items-center justify-center text-blue-500 gap-4">
@@ -149,6 +139,27 @@ function App() {
             {viewMode === 'dome' && <DomeView satellites={satellites} timeRef={simulatedTimeRef} />}
         </div>
       )}
+
+      {/* Banner ด้านล่างขวา */}
+      <div className="absolute bottom-6 right-6 z-10 pointer-events-none flex flex-col items-end select-none">
+        <h1 className="text-lg md:text-xl font-black tracking-[0.15em] text-transparent bg-clip-text bg-gradient-to-b from-white via-blue-100 to-blue-400 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)] uppercase">
+          THAILAND STARLINK TRACKING SIMULATION
+        </h1>
+        <div className="w-full h-[1px] mt-1.5 bg-gradient-to-l from-blue-500/50 to-transparent"></div>
+        {/* Satellites Tracked subtext */}
+        {!loading && (
+          <div className="text-[10px] text-white/50 font-mono tracking-widest mt-1">
+            SATELLITES TRACKED: {satellites.length.toLocaleString()}
+          </div>
+        )}
+      </div>
+
+      {/* Last Modified Timestamp (yellow highlight) - Bottom Left Corner */}
+      <div className="absolute bottom-6 left-6 z-10 pointer-events-auto select-none">
+        <div className="px-3.5 py-1.5 bg-amber-500/15 border border-amber-500/50 rounded-lg font-mono text-[10px] text-amber-400 font-bold tracking-[0.05em] shadow-[0_0_12px_rgba(245,158,11,0.25)] backdrop-blur-md">
+          LAST MODIFIED: 20/MAY/2026 14:18
+        </div>
+      </div>
     </div>
   )
 }
