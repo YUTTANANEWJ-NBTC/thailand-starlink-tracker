@@ -4,7 +4,7 @@ import * as satellite from 'satellite.js';
 export function getSatelliteEci(tleLine1, tleLine2, date = new Date()) {
   const satrec = satellite.twoline2satrec(tleLine1, tleLine2);
   const positionAndVelocity = satellite.propagate(satrec, date);
-  return positionAndVelocity.position; // returns ECI coordinates or false
+  return positionAndVelocity ? positionAndVelocity.position : null;
 }
 
 // Calculate Lat/Lon/Alt from TLE

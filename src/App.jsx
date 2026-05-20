@@ -85,6 +85,13 @@ function App() {
         >
           Sky Circle View
         </button>
+        <div className="w-[1px] h-6 bg-white/10 self-center"></div>
+        <a 
+          href="index2.html"
+          className="px-6 py-2.5 rounded-lg text-sm font-medium text-blue-400 hover:text-white hover:bg-blue-600/30 hover:border-blue-400/50 transition-all duration-300 border border-blue-500/20 bg-blue-950/20 shadow-[0_0_15px_rgba(59,130,246,0.1)] flex items-center gap-1.5"
+        >
+          2D ASEAN Footprint Map 🗺️
+        </a>
       </div>
 
       <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2 text-white/90 font-mono tracking-widest pointer-events-none">

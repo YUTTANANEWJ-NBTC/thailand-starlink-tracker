@@ -9,6 +9,14 @@ export default defineConfig(({ command }) => ({
     react(),
   ],
   base: command === 'build' ? '/thailand-starlink-tracker/' : '/',
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        footprint: 'index2.html',
+      },
+    },
+  },
   worker: {
     format: 'es',
   },
